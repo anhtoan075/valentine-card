@@ -6,10 +6,6 @@
 <title>For Thu Trang 💌</title>
 
 <style>
-  :root{
-    --side: 14px;
-  }
-
   body{
     margin:0;
     height:100vh;
@@ -31,14 +27,14 @@
   }
   body.yes-bg .overlay{ background: rgba(0,0,0,.22); }
 
-  /* stage phủ đúng phần nhìn thấy */
+  /* stage phủ đúng phần nhìn thấy (iPhone/Zalo bar co giãn vẫn ok) */
   #stage{
     position:fixed;
     left:0; top:0;
     width:100vw;
-    height:100svh;     /* ✅ key fix */
+    height:100svh;         /* ✅ key fix */
     z-index:5;
-    pointer-events:none;
+    pointer-events:none;   /* chỉ bật khi đưa NO vào stage */
   }
 
   .center{
@@ -151,7 +147,7 @@
 
   <div class="center" id="centerUI">
     <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
-    <div class="btn-row" id="btnRow">
+    <div class="btn-row">
       <button id="yes">Yes</button>
       <button id="no">No</button>
     </div>
@@ -173,9 +169,7 @@
   function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
-  function stageSize(){
-    return { w: stage.clientWidth, h: stage.clientHeight };
-  }
+  function stageSize(){ return { w: stage.clientWidth, h: stage.clientHeight }; }
 
   function computeFinalScale(){
     const r = yesBtn.getBoundingClientRect();
@@ -183,64 +177,65 @@
     return clamp(targetW / r.width, 1, 12);
   }
 
-  // AABB intersect
   function intersects(a, b){
     return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
   }
 
-  // lấy rect của centerUI và YES theo viewport
   function getAvoidRects(){
-    const centerRect = centerUI.getBoundingClientRect();
-    const yesRect = yesBtn.getBoundingClientRect();
-    return { centerRect, yesRect };
+    return {
+      centerRect: centerUI.getBoundingClientRect(),
+      yesRect: yesBtn.getBoundingClientRect()
+    };
   }
 
-  // ✅ No chỉ chạy trong vùng giữa: dưới câu hỏi 1 chút, không quá xa
+  // ✅ 60% nửa trên, 40% nửa dưới (vẫn né vùng câu hỏi + né YES)
   function pickNoPositionAvoiding(){
     const { w, h } = stageSize();
     const b = noBtn.getBoundingClientRect();
 
-    // vùng chạy: quanh giữa màn hình
-    // - Y: từ ~55% màn hình đến ~78% màn hình (dưới câu hỏi, nhưng không xuống quá dưới)
-    // - X: từ 18% đến 82% (không sát mép)
-    const xMin = Math.round(w * 0.18);
-    const xMax = Math.round(w * 0.82 - b.width);
+    const padSide = 14;
+    const padTop = 80;     // chừa tai thỏ/app bar
+    const padBottom = 40;  // chừa phần dưới
 
-    const yMin = Math.round(h * 0.52);
-    const yMax = Math.round(h * 0.78 - b.height);
-
-    // clamp đảm bảo không âm
-    const minX = clamp(xMin, 14, Math.max(14, w - b.width - 14));
-    const maxX = clamp(xMax, minX, Math.max(minX, w - b.width - 14));
-
-    const minY = clamp(yMin, 80, Math.max(80, h - b.height - 40));
-    const maxY = clamp(yMax, minY, Math.max(minY, h - b.height - 40));
+    const minX = padSide;
+    const maxX = Math.max(minX, w - b.width - padSide);
 
     const { centerRect, yesRect } = getAvoidRects();
 
-    // thử nhiều lần để né chữ + né yes
-    for(let i=0;i<40;i++){
-      const x = rand(minX, maxX);
-      const y = rand(minY, maxY);
+    // chia 2 vùng Y: upper / lower
+    const upperMinY = padTop;
+    const upperMaxY = Math.max(upperMinY, Math.floor(h * 0.48) - b.height);
 
-      const candidate = {
-        left: x,
-        top: y,
-        right: x + b.width,
-        bottom: y + b.height
-      };
+    const lowerMinY = Math.max(padTop, Math.floor(h * 0.55));
+    const lowerMaxY = Math.max(lowerMinY, h - b.height - padBottom);
 
-      // tránh đè lên câu hỏi
-      if (intersects(candidate, centerRect)) continue;
+    function tryPick(yMin, yMax){
+      for(let i=0;i<60;i++){
+        const x = rand(minX, maxX);
+        const y = rand(yMin, yMax);
 
-      // tránh đè lên YES (khi YES bắt đầu phình)
-      if (intersects(candidate, yesRect)) continue;
+        const candidate = { left:x, top:y, right:x+b.width, bottom:y+b.height };
 
-      return { x, y };
+        // né câu hỏi và né YES
+        if (intersects(candidate, centerRect)) continue;
+        if (intersects(candidate, yesRect)) continue;
+
+        return { x, y };
+      }
+      return null;
     }
 
-    // fallback: vị trí an toàn cố định (giữa lệch trái)
-    return { x: Math.round(w*0.30), y: Math.round(h*0.70) };
+    const useUpper = Math.random() < 0.6;
+
+    let pos = null;
+    if (useUpper){
+      pos = tryPick(upperMinY, upperMaxY) || tryPick(lowerMinY, lowerMaxY);
+    } else {
+      pos = tryPick(lowerMinY, lowerMaxY) || tryPick(upperMinY, upperMaxY);
+    }
+
+    // fallback chắc chắn không lỗi
+    return pos || { x: Math.floor(w*0.30), y: Math.floor(h*0.70) };
   }
 
   function moveNo(){
@@ -270,7 +265,7 @@
     }, 180);
   }
 
-  // NO: ban đầu đứng trong hàng; bấm mới tách ra vào stage
+  // NO: ban đầu trong hàng; bấm mới đưa vào stage để chạy
   noBtn.addEventListener("pointerdown", (e)=>{
     e.preventDefault();
 
@@ -283,7 +278,7 @@
       noBtn.style.position = "absolute";
       noBtn.style.transform = "none";
 
-      // đặt ngay dưới câu hỏi 1 chút trước
+      // đặt ngay gần dưới câu hỏi trước
       noBtn.style.left = "50%";
       noBtn.style.top  = "68%";
       noBtn.style.transform = "translate(-50%,-50%)";
@@ -319,7 +314,7 @@
     }
   });
 
-  // YES
+  // YES: couple + khung chữ + tim bay mãi
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
     loveBox.classList.add("show");
@@ -331,7 +326,6 @@
     startHeartsForever();
   });
 
-  // resize: recalc scale & giữ No trong vùng giữa
   window.addEventListener("resize", ()=>{
     finalScale = null;
     if (noIsFloating) moveNo();
