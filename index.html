@@ -23,9 +23,6 @@
     background: linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18));
     pointer-events:none;
   }
-  body.yes-bg .overlay{
-    background: linear-gradient(rgba(0,0,0,.22), rgba(0,0,0,.22));
-  }
 
   .center{
     position:fixed;
@@ -141,48 +138,40 @@
 
   function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
 
-  // ✅ Lấy safe-area (tai thỏ) + chừa thanh url trên/dưới
-  function safeInsets(){
-    const cs = getComputedStyle(document.documentElement);
-    const topSA = parseFloat(cs.getPropertyValue("--sat")) || 0; // fallback
-    return {
-      top:  Math.max(16, parseFloat(getComputedStyle(document.body).paddingTop) || 0, 24),
-      bottom:  Math.max(16, parseFloat(getComputedStyle(document.body).paddingBottom) || 0, 24)
-    };
+  // ✅ Lấy kích thước viewport “thực” (trừ thanh URL iPhone)
+  function vp(){
+    const vv = window.visualViewport;
+    if (vv) return { w: vv.width, h: vv.height, x: vv.offsetLeft, y: vv.offsetTop };
+    return { w: window.innerWidth, h: window.innerHeight, x: 0, y: 0 };
   }
 
-  function getSafePadding(){
-    // iOS safe-area env() không đọc được trực tiếp bằng JS ổn định,
-    // nên mình chừa thủ công thêm một khoảng “đủ chắc”.
-    // Top: tránh status bar + header in-app
-    // Bottom: tránh thanh URL Safari
-    return { top: 90, bottom: 110, side: 14 };
+  // ✅ vùng an toàn: top tránh status/app bar, bottom tránh url bar
+  function pads(){
+    return { top: 90, bottom: 40, side: 14 }; 
+    // bottom nhỏ vì visualViewport đã trừ phần lớn URL bar rồi
   }
 
   function computeFinalScale(){
     const r = yesBtn.getBoundingClientRect();
-    const targetW = window.innerWidth * 0.92;
+    const targetW = vp().w * 0.92;
     let s = targetW / r.width;
     s = Math.min(Math.max(s, 1), 12);
     return s;
   }
 
-  // ✅ NO chạy trong vùng “an toàn”, không lọt ra ngoài màn hình
   function moveNoAnywhereSafe(){
-    const pad = getSafePadding();
+    const {w,h,x,y} = vp();
+    const pad = pads();
     const b = noBtn.getBoundingClientRect();
 
-    const minX = pad.side;
-    const maxX = Math.max(minX, window.innerWidth - b.width - pad.side);
+    const minX = x + pad.side;
+    const maxX = Math.max(minX, x + w - b.width - pad.side);
 
-    const minY = pad.top;
-    const maxY = Math.max(minY, window.innerHeight - b.height - pad.bottom);
+    const minY = y + pad.top;
+    const maxY = Math.max(minY, y + h - b.height - pad.bottom);
 
-    const x = rand(minX, maxX);
-    const y = rand(minY, maxY);
-
-    noBtn.style.left = x + "px";
-    noBtn.style.top  = y + "px";
+    noBtn.style.left = rand(minX, maxX) + "px";
+    noBtn.style.top  = rand(minY, maxY) + "px";
   }
 
   function spawnHeart(){
@@ -190,7 +179,7 @@
     const h = document.createElement("div");
     h.className = "heart";
     h.textContent = icons[rand(0, icons.length)];
-    h.style.left = rand(0, window.innerWidth) + "px";
+    h.style.left = rand(0, vp().w) + "px";
     h.style.fontSize = rand(18, 36) + "px";
     h.style.animationDuration = (1.8 + Math.random()*1.1).toFixed(2) + "s";
     hearts.appendChild(h);
@@ -205,43 +194,21 @@
     }, 180);
   }
 
-  // ✅ nếu NO “lỡ” bị ra ngoài (do resize/URL bar), kéo về giữa
-  function keepNoVisible(){
-    if (!noIsFloating) return;
-    const r = noBtn.getBoundingClientRect();
-    const pad = getSafePadding();
-    const out =
-      r.right < 0 || r.left > window.innerWidth ||
-      r.bottom < pad.top || r.top > window.innerHeight - pad.bottom;
-
-    if (out){
-      noBtn.style.left = "50%";
-      noBtn.style.top  = "50%";
-      noBtn.style.transform = "translate(-50%,-50%)";
-      // Sau đó nhảy lại 1 phát cho đúng hành vi
-      setTimeout(() => {
-        noBtn.style.transform = "";
-        moveNoAnywhereSafe();
-      }, 120);
-    }
-  }
-
+  // ✅ NO: lần đầu mới tách ra, sau đó nhảy trong visualViewport
   noBtn.addEventListener("pointerdown",(e)=>{
     e.preventDefault();
 
-    // Lần đầu: chuyển sang fixed nhưng giữ ngay vị trí “nhìn thấy”
     if (!noIsFloating){
       noIsFloating = true;
       noBtn.style.position = "fixed";
       noBtn.style.zIndex = 9999;
 
-      // đặt nó đúng chỗ đang đứng rồi mới nhảy (tránh biến mất)
-      const rect = noBtn.getBoundingClientRect();
-      noBtn.style.left = rect.left + "px";
-      noBtn.style.top  = rect.top + "px";
+      // giữ vị trí hiện tại trước khi nhảy
+      const r = noBtn.getBoundingClientRect();
+      noBtn.style.left = r.left + "px";
+      noBtn.style.top  = r.top + "px";
     }
 
-    // nhảy trong vùng an toàn
     moveNoAnywhereSafe();
 
     // YES to dần ~15 lần
@@ -267,23 +234,27 @@
     }
   });
 
+  // YES
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
     loveBox.classList.add("show");
-
     centerUI.style.display = "none";
     noBtn.style.display = "none";
     yesBtn.style.display = "none";
-
     startHeartsForever();
   });
 
-  // iOS / in-app browser hay thay đổi viewport khi thanh URL co giãn
-  window.addEventListener("resize", ()=>{
+  // iOS: thanh URL co giãn => visualViewport thay đổi
+  function onVVChange(){
     finalScale = null;
-    keepNoVisible();
-  });
-  window.addEventListener("scroll", ()=> keepNoVisible(), {passive:true});
+    if (noIsFloating) moveNoAnywhereSafe();
+  }
+  if (window.visualViewport){
+    window.visualViewport.addEventListener("resize", onVVChange);
+    window.visualViewport.addEventListener("scroll", onVVChange);
+  } else {
+    window.addEventListener("resize", onVVChange);
+  }
 </script>
 </body>
 </html>
