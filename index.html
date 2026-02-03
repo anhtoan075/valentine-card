@@ -6,6 +6,12 @@
 <title>For Thu Trang 💌</title>
 
 <style>
+  :root{
+    --pad-top: 90px;
+    --pad-bottom: 40px;
+    --pad-side: 14px;
+  }
+
   body{
     margin:0;
     height:100vh;
@@ -13,17 +19,31 @@
     overflow:hidden;
     background: url("dogcat.jpg") center / cover no-repeat fixed;
   }
+
   body.yes-bg{
     background: url("couple.jpg") center / cover no-repeat fixed;
   }
 
   .overlay{
-    position:fixed; inset:0;
+    position:fixed;
+    inset:0;
     background: rgba(0,0,0,.18);
     pointer-events:none;
+    z-index:1;
   }
   body.yes-bg .overlay{ background: rgba(0,0,0,.22); }
 
+  /* stage phủ đúng phần nhìn thấy (iPhone/Zalo bar co giãn vẫn ok) */
+  #stage{
+    position:fixed;
+    left:0; top:0;
+    width:100vw;
+    height:100svh;     /* ✅ key fix */
+    z-index:5;
+    pointer-events:none; /* chỉ bật khi cần cho No */
+  }
+
+  /* UI câu hỏi */
   .center{
     position:fixed;
     left:50%;
@@ -31,7 +51,7 @@
     transform:translate(-50%,-50%);
     width:min(560px,92vw);
     text-align:center;
-    z-index:5;
+    z-index:6;
   }
 
   h2{
@@ -58,6 +78,7 @@
     user-select:none;
     touch-action:manipulation;
     transition: transform .25s ease, left .18s ease, top .18s ease;
+    margin:0;
   }
 
   #yes{
@@ -73,6 +94,7 @@
     z-index:9999;
   }
 
+  /* khung chữ sau khi YES */
   .love-box{
     position:fixed;
     left:50%;
@@ -81,7 +103,7 @@
     width:min(560px,92vw);
     padding:18px 18px;
     border-radius:22px;
-    background:rgba(255,255,255,.80);
+    background:rgba(255,255,255,.82);
     backdrop-filter: blur(10px);
     box-shadow:0 18px 45px rgba(0,0,0,.22);
     text-align:center;
@@ -98,8 +120,21 @@
     line-height:1.35;
   }
 
-  .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9; }
-  .heart{ position:absolute; bottom:-30px; animation: float 2.2s ease forwards; opacity:.95; }
+  /* hearts */
+  .hearts{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:9;
+  }
+  .heart{
+    position:absolute;
+    bottom:-30px;
+    animation: float 2.2s ease forwards;
+    opacity:.95;
+    filter: drop-shadow(0 10px 14px rgba(0,0,0,.18));
+  }
   @keyframes float{
     0%{transform:translateY(0) scale(.8);opacity:0}
     10%{opacity:1}
@@ -111,6 +146,7 @@
 <body>
   <div class="overlay"></div>
   <div class="hearts" id="hearts"></div>
+  <div id="stage"></div>
 
   <div class="love-box" id="loveBox">
     <p class="love-text">Ba biết màaa, ba yêu Thu Trang nhiều lắmmm 🦦</p>
@@ -118,7 +154,7 @@
 
   <div class="center" id="centerUI">
     <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
-    <div class="btn-row">
+    <div class="btn-row" id="btnRow">
       <button id="yes">Yes</button>
       <button id="no">No</button>
     </div>
@@ -130,6 +166,8 @@
   const hearts   = document.getElementById("hearts");
   const loveBox  = document.getElementById("loveBox");
   const centerUI = document.getElementById("centerUI");
+  const stage    = document.getElementById("stage");
+  const btnRow   = document.getElementById("btnRow");
 
   let noCount = 0;
   let finalScale = null;
@@ -139,37 +177,33 @@
   function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
-  // ✅ viewport ổn định (iOS/laptop đều ok)
-  function viewport(){
-    return {
-      w: document.documentElement.clientWidth,
-      h: document.documentElement.clientHeight
-    };
-  }
-
-  // ✅ vùng an toàn (tránh status + thanh dưới)
-  function pad(){
-    return { top: 90, bottom: 120, side: 14 };
+  function vp(){
+    return { w: document.documentElement.clientWidth, h: document.documentElement.clientHeight };
   }
 
   function computeFinalScale(){
     const r = yesBtn.getBoundingClientRect();
-    const targetW = viewport().w * 0.92;
-    let s = targetW / r.width;
-    return clamp(s, 1, 12);
+    const targetW = vp().w * 0.92;
+    return clamp(targetW / r.width, 1, 12);
   }
 
-  // ✅ nhảy NO nhưng không bao giờ ra khỏi màn hình
-  function moveNoSafe(){
-    const {w,h} = viewport();
-    const p = pad();
+  function stageSize(){
+    return { w: stage.clientWidth, h: stage.clientHeight };
+  }
+
+  function moveNoInStage(){
+    const { w, h } = stageSize();
     const b = noBtn.getBoundingClientRect();
 
-    const minX = p.side;
-    const maxX = Math.max(minX, w - b.width - p.side);
+    const padTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pad-top")) || 90;
+    const padBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pad-bottom")) || 40;
+    const padSide = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pad-side")) || 14;
 
-    const minY = p.top;
-    const maxY = Math.max(minY, h - b.height - p.bottom);
+    const minX = padSide;
+    const maxX = Math.max(minX, w - b.width - padSide);
+
+    const minY = padTop;
+    const maxY = Math.max(minY, h - b.height - padBottom);
 
     const x = rand(minX, maxX);
     const y = rand(minY, maxY);
@@ -178,35 +212,34 @@
     noBtn.style.top  = y + "px";
   }
 
-  // ✅ nếu vì lý do nào đó NO vẫn lọt ra ngoài → kéo về giữa
   function ensureNoVisible(){
     if (!noIsFloating) return;
+
+    const { w, h } = stageSize();
     const r = noBtn.getBoundingClientRect();
-    const {w,h} = viewport();
-    const p = pad();
-    const out = (r.right < 0 || r.left > w || r.bottom < p.top || r.top > h - p.bottom);
-    if (out){
-      noBtn.style.left = "50%";
-      noBtn.style.top  = "55%";
-      noBtn.style.transform = "translate(-50%,-50%)";
-      setTimeout(() => {
-        noBtn.style.transform = "";
-        moveNoSafe();
-      }, 120);
-    }
+    const left = parseFloat(noBtn.style.left || "0");
+    const top  = parseFloat(noBtn.style.top  || "0");
+
+    const padTop = 90, padBottom = 40, padSide = 14;
+
+    const safeLeft = clamp(left, padSide, Math.max(padSide, w - r.width - padSide));
+    const safeTop  = clamp(top,  padTop,  Math.max(padTop,  h - r.height - padBottom));
+
+    noBtn.style.left = safeLeft + "px";
+    noBtn.style.top  = safeTop  + "px";
   }
 
   function spawnHeart(){
     const icons = ["💗","💖","❤️","🫧"];
-    const {w} = viewport();
-    const h = document.createElement("div");
-    h.className = "heart";
-    h.textContent = icons[rand(0, icons.length-1)];
-    h.style.left = rand(0, w) + "px";
-    h.style.fontSize = rand(18, 36) + "px";
-    h.style.animationDuration = (1.8 + Math.random()*1.1).toFixed(2) + "s";
-    hearts.appendChild(h);
-    h.addEventListener("animationend", ()=> h.remove());
+    const { w } = vp();
+    const el = document.createElement("div");
+    el.className = "heart";
+    el.textContent = icons[rand(0, icons.length-1)];
+    el.style.left = rand(0, w) + "px";
+    el.style.fontSize = rand(18, 36) + "px";
+    el.style.animationDuration = (1.8 + Math.random()*1.1).toFixed(2) + "s";
+    hearts.appendChild(el);
+    el.addEventListener("animationend", ()=> el.remove());
   }
 
   function startHeartsForever(){
@@ -217,26 +250,40 @@
     }, 180);
   }
 
-  // ✅ NO: ban đầu đứng trong hàng; chỉ khi bấm mới “tách ra” và bắt đầu chạy
+  // NO: ban đầu đứng trong hàng; bấm mới tách ra và bắt đầu chạy trong stage
   noBtn.addEventListener("pointerdown", (e)=>{
     e.preventDefault();
 
     if (!noIsFloating){
       noIsFloating = true;
-      // giữ đúng vị trí đang đứng trước khi chuyển fixed
-      const r = noBtn.getBoundingClientRect();
-      noBtn.style.position = "fixed";
-      noBtn.style.left = r.left + "px";
-      noBtn.style.top  = r.top  + "px";
+
+      // bật pointer events để bấm được NO sau khi đưa vào stage
+      stage.style.pointerEvents = "auto";
+
+      // đưa NO vào stage
+      stage.appendChild(noBtn);
+
+      // set absolute trong stage
+      noBtn.style.position = "absolute";
+      noBtn.style.transform = "none";
+
+      // đặt NO ở gần giữa trước (chắc chắn nhìn thấy), rồi mới nhảy random
+      noBtn.style.left = "50%";
+      noBtn.style.top  = "62%";
+      noBtn.style.transform = "translate(-50%,-50%)";
+
+      // bỏ transform sau 1 tick rồi random
+      setTimeout(() => {
+        noBtn.style.transform = "none";
+        moveNoInStage();
+      }, 50);
+    } else {
+      moveNoInStage();
     }
 
-    moveNoSafe();
-    ensureNoVisible();
-
-    // YES to dần, ~15 lần gần full
+    // YES to dần ~15 lần
     noCount++;
     if (!finalScale) finalScale = computeFinalScale();
-
     const t = Math.min(noCount / 15, 1);
     const scale = 1 + t * (finalScale - 1);
 
@@ -257,17 +304,20 @@
     }
   });
 
-  // YES: chỉ còn couple + khung chữ + tim bay mãi
+  // YES: couple + khung chữ + tim bay mãi
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
     loveBox.classList.add("show");
+
     centerUI.style.display = "none";
+    // ẩn luôn NO nếu đang ở stage
     noBtn.style.display = "none";
     yesBtn.style.display = "none";
+
     startHeartsForever();
   });
 
-  // iPhone/Zalo co giãn thanh bar => viewport đổi
+  // iPhone/Zalo bar co giãn → stage height đổi theo svh, kéo NO về lại nếu cần
   window.addEventListener("resize", ()=>{
     finalScale = null;
     ensureNoVisible();
