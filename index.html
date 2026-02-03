@@ -12,7 +12,6 @@
     font-family:system-ui;
     overflow:hidden;
     background: url("dogcat.jpg") center / cover no-repeat fixed;
-    position:relative;
   }
   body.yes-bg{
     background: url("couple.jpg") center / cover no-repeat fixed;
@@ -20,9 +19,10 @@
 
   .overlay{
     position:fixed; inset:0;
-    background: linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18));
+    background: rgba(0,0,0,.18);
     pointer-events:none;
   }
+  body.yes-bg .overlay{ background: rgba(0,0,0,.22); }
 
   .center{
     position:fixed;
@@ -57,7 +57,7 @@
     cursor:pointer;
     user-select:none;
     touch-action:manipulation;
-    transition: transform .25s ease, left .25s ease, top .25s ease;
+    transition: transform .25s ease, left .18s ease, top .18s ease;
   }
 
   #yes{
@@ -125,61 +125,84 @@
   </div>
 
 <script>
-  const yesBtn = document.getElementById("yes");
-  const noBtn  = document.getElementById("no");
-  const hearts = document.getElementById("hearts");
-  const loveBox = document.getElementById("loveBox");
+  const yesBtn   = document.getElementById("yes");
+  const noBtn    = document.getElementById("no");
+  const hearts   = document.getElementById("hearts");
+  const loveBox  = document.getElementById("loveBox");
   const centerUI = document.getElementById("centerUI");
 
   let noCount = 0;
-  let heartTimer = null;
   let finalScale = null;
   let noIsFloating = false;
+  let heartTimer = null;
 
-  function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
-  // ✅ Lấy kích thước viewport “thực” (trừ thanh URL iPhone)
-  function vp(){
-    const vv = window.visualViewport;
-    if (vv) return { w: vv.width, h: vv.height, x: vv.offsetLeft, y: vv.offsetTop };
-    return { w: window.innerWidth, h: window.innerHeight, x: 0, y: 0 };
+  // ✅ viewport ổn định (iOS/laptop đều ok)
+  function viewport(){
+    return {
+      w: document.documentElement.clientWidth,
+      h: document.documentElement.clientHeight
+    };
   }
 
-  // ✅ vùng an toàn: top tránh status/app bar, bottom tránh url bar
-  function pads(){
-    return { top: 90, bottom: 40, side: 14 }; 
-    // bottom nhỏ vì visualViewport đã trừ phần lớn URL bar rồi
+  // ✅ vùng an toàn (tránh status + thanh dưới)
+  function pad(){
+    return { top: 90, bottom: 120, side: 14 };
   }
 
   function computeFinalScale(){
     const r = yesBtn.getBoundingClientRect();
-    const targetW = vp().w * 0.92;
+    const targetW = viewport().w * 0.92;
     let s = targetW / r.width;
-    s = Math.min(Math.max(s, 1), 12);
-    return s;
+    return clamp(s, 1, 12);
   }
 
-  function moveNoAnywhereSafe(){
-    const {w,h,x,y} = vp();
-    const pad = pads();
+  // ✅ nhảy NO nhưng không bao giờ ra khỏi màn hình
+  function moveNoSafe(){
+    const {w,h} = viewport();
+    const p = pad();
     const b = noBtn.getBoundingClientRect();
 
-    const minX = x + pad.side;
-    const maxX = Math.max(minX, x + w - b.width - pad.side);
+    const minX = p.side;
+    const maxX = Math.max(minX, w - b.width - p.side);
 
-    const minY = y + pad.top;
-    const maxY = Math.max(minY, y + h - b.height - pad.bottom);
+    const minY = p.top;
+    const maxY = Math.max(minY, h - b.height - p.bottom);
 
-    noBtn.style.left = rand(minX, maxX) + "px";
-    noBtn.style.top  = rand(minY, maxY) + "px";
+    const x = rand(minX, maxX);
+    const y = rand(minY, maxY);
+
+    noBtn.style.left = x + "px";
+    noBtn.style.top  = y + "px";
+  }
+
+  // ✅ nếu vì lý do nào đó NO vẫn lọt ra ngoài → kéo về giữa
+  function ensureNoVisible(){
+    if (!noIsFloating) return;
+    const r = noBtn.getBoundingClientRect();
+    const {w,h} = viewport();
+    const p = pad();
+    const out = (r.right < 0 || r.left > w || r.bottom < p.top || r.top > h - p.bottom);
+    if (out){
+      noBtn.style.left = "50%";
+      noBtn.style.top  = "55%";
+      noBtn.style.transform = "translate(-50%,-50%)";
+      setTimeout(() => {
+        noBtn.style.transform = "";
+        moveNoSafe();
+      }, 120);
+    }
   }
 
   function spawnHeart(){
     const icons = ["💗","💖","❤️","🫧"];
+    const {w} = viewport();
     const h = document.createElement("div");
     h.className = "heart";
-    h.textContent = icons[rand(0, icons.length)];
-    h.style.left = rand(0, vp().w) + "px";
+    h.textContent = icons[rand(0, icons.length-1)];
+    h.style.left = rand(0, w) + "px";
     h.style.fontSize = rand(18, 36) + "px";
     h.style.animationDuration = (1.8 + Math.random()*1.1).toFixed(2) + "s";
     hearts.appendChild(h);
@@ -194,26 +217,26 @@
     }, 180);
   }
 
-  // ✅ NO: lần đầu mới tách ra, sau đó nhảy trong visualViewport
-  noBtn.addEventListener("pointerdown",(e)=>{
+  // ✅ NO: ban đầu đứng trong hàng; chỉ khi bấm mới “tách ra” và bắt đầu chạy
+  noBtn.addEventListener("pointerdown", (e)=>{
     e.preventDefault();
 
     if (!noIsFloating){
       noIsFloating = true;
-      noBtn.style.position = "fixed";
-      noBtn.style.zIndex = 9999;
-
-      // giữ vị trí hiện tại trước khi nhảy
+      // giữ đúng vị trí đang đứng trước khi chuyển fixed
       const r = noBtn.getBoundingClientRect();
+      noBtn.style.position = "fixed";
       noBtn.style.left = r.left + "px";
-      noBtn.style.top  = r.top + "px";
+      noBtn.style.top  = r.top  + "px";
     }
 
-    moveNoAnywhereSafe();
+    moveNoSafe();
+    ensureNoVisible();
 
-    // YES to dần ~15 lần
+    // YES to dần, ~15 lần gần full
     noCount++;
     if (!finalScale) finalScale = computeFinalScale();
+
     const t = Math.min(noCount / 15, 1);
     const scale = 1 + t * (finalScale - 1);
 
@@ -234,7 +257,7 @@
     }
   });
 
-  // YES
+  // YES: chỉ còn couple + khung chữ + tim bay mãi
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
     loveBox.classList.add("show");
@@ -244,17 +267,11 @@
     startHeartsForever();
   });
 
-  // iOS: thanh URL co giãn => visualViewport thay đổi
-  function onVVChange(){
+  // iPhone/Zalo co giãn thanh bar => viewport đổi
+  window.addEventListener("resize", ()=>{
     finalScale = null;
-    if (noIsFloating) moveNoAnywhereSafe();
-  }
-  if (window.visualViewport){
-    window.visualViewport.addEventListener("resize", onVVChange);
-    window.visualViewport.addEventListener("scroll", onVVChange);
-  } else {
-    window.addEventListener("resize", onVVChange);
-  }
+    ensureNoVisible();
+  });
 </script>
 </body>
 </html>
