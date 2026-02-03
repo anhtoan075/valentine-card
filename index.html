@@ -13,67 +13,57 @@ body{
   place-items:center;
   font-family:system-ui;
   overflow:hidden;
+
+  /* nền hồng ngoài */
   background:linear-gradient(135deg,#ffe0ec,#fff);
 }
 
-/* nền couple khi YES */
+/* khi bấm YES → nền couple */
 body.yes-bg{
   background:
-    linear-gradient(rgba(255,224,236,.65),rgba(255,224,236,.65)),
-    url("couple");
+    linear-gradient(rgba(255,224,236,.7),rgba(255,224,236,.7)),
+    url("couple.jpg");
   background-size:cover;
   background-position:center;
 }
 
-/* card */
+/* CARD có nền dogcat */
 .card{
   width:min(520px,95vw);
-  background:rgba(255,255,255,.9);
   padding:26px;
-  border-radius:26px;
+  border-radius:28px;
   text-align:center;
-  box-shadow:0 15px 40px rgba(0,0,0,.15);
-  position:relative;
-  z-index:2;
-}
+  box-shadow:0 18px 45px rgba(0,0,0,.18);
 
-/* chó mèo */
-.pet{
-  width:82px;
-  height:82px;
-  border-radius:50%;
-  object-fit:cover;
-  border:3px solid #fff;
-  box-shadow:0 10px 25px rgba(0,0,0,.18);
-}
+  /* ✅ nền ảnh chó mèo */
+  background:
+    linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,.55)),
+    url("dogcat.jpg");
 
-.question-wrap{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:14px;
-  flex-wrap:wrap;
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
 }
 
 h2{
   color:#ff3b7b;
-  font-size:22px;
   font-weight:900;
-  margin:0;
+  font-size:22px;
+  margin-bottom:16px;
+  text-shadow:0 3px 18px rgba(255,255,255,.9);
 }
 
 .arena{
-  height:200px;
+  height:220px;
   position:relative;
-  margin-top:16px;
 }
 
-/* nút */
+/* buttons */
 button{
-  padding:14px 26px;
+  padding:15px 30px;
   border:none;
   border-radius:999px;
-  font-size:17px;
+  font-size:18px;
   cursor:pointer;
   position:absolute;
   transition:all .25s ease;
@@ -82,7 +72,7 @@ button{
 #yes{
   background:#ff3b7b;
   color:white;
-  left:22%;
+  left:25%;
   bottom:20px;
   transform:scale(1);
   z-index:5;
@@ -95,10 +85,11 @@ button{
 }
 
 #msg{
-  margin-top:14px;
-  font-weight:800;
+  margin-top:12px;
   font-size:18px;
+  font-weight:900;
   color:#ff3b7b;
+  text-shadow:0 3px 18px rgba(255,255,255,.9);
 }
 
 /* hearts */
@@ -117,7 +108,7 @@ button{
 @keyframes float{
   0%{transform:translateY(0) scale(.8);opacity:0}
   10%{opacity:1}
-  100%{transform:translateY(-360px) scale(1.4);opacity:0}
+  100%{transform:translateY(-380px) scale(1.5);opacity:0}
 }
 </style>
 </head>
@@ -127,11 +118,7 @@ button{
 <div class="hearts" id="hearts"></div>
 
 <div class="card">
-  <div class="question-wrap">
-    <img src="dog" class="pet">
-    <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
-    <img src="cat" class="pet">
-  </div>
+  <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
 
   <div class="arena" id="arena">
     <button id="yes">Yes</button>
@@ -150,12 +137,11 @@ const hearts=document.getElementById("hearts");
 
 let count=0;
 
-/* random */
 function rand(min,max){
   return Math.floor(Math.random()*(max-min)+min);
 }
 
-/* No chạy */
+/* NO chạy */
 function moveNo(){
   const a=arena.getBoundingClientRect();
   const b=noBtn.getBoundingClientRect();
@@ -163,10 +149,10 @@ function moveNo(){
   noBtn.style.top=rand(0,a.height-b.height)+"px";
 }
 
-/* hearts */
+/* tim */
 function spawnHearts(){
   const icons=["💗","💖","❤️"];
-  for(let i=0;i<22;i++){
+  for(let i=0;i<24;i++){
     const h=document.createElement("div");
     h.className="heart";
     h.textContent=icons[rand(0,icons.length)];
@@ -177,19 +163,16 @@ function spawnHearts(){
   }
 }
 
-/* NO → YES to mạnh dần */
+/* NO → YES to dần, ~10 lần gần full */
 noBtn.addEventListener("pointerdown",(e)=>{
   e.preventDefault();
   moveNo();
 
   count++;
-
-  // scale tăng nhanh hơn, ~10 lần gần full màn hình
-  let scale = 1 + count*0.35;
+  let scale=1+count*0.35;
 
   yesBtn.style.transform=`scale(${scale})`;
 
-  // nếu quá to thì tự center
   if(scale>4){
     yesBtn.style.left="50%";
     yesBtn.style.bottom="50%";
