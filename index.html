@@ -11,32 +11,22 @@
     height:100vh;
     font-family:system-ui;
     overflow:hidden;
-    /* ✅ Background ban đầu: dogcat full màn hình */
     background: url("dogcat.jpg") center / cover no-repeat fixed;
     position:relative;
   }
-
-  /* ✅ Khi bấm YES: chuyển sang couple full màn hình */
   body.yes-bg{
     background: url("couple.jpg") center / cover no-repeat fixed;
   }
 
-  /* Lớp overlay để chữ/nút nổi rõ (không hồng) */
   .overlay{
-    position:fixed;
-    inset:0;
+    position:fixed; inset:0;
     background: linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18));
     pointer-events:none;
-    opacity:1;
-    transition: opacity .25s ease;
   }
-
-  /* Khi YES: overlay có thể dịu hơn cho đẹp */
   body.yes-bg .overlay{
     background: linear-gradient(rgba(0,0,0,.22), rgba(0,0,0,.22));
   }
 
-  /* Container trung tâm cho câu hỏi + nút lúc đầu */
   .center{
     position:fixed;
     left:50%;
@@ -73,7 +63,6 @@
     transition: transform .25s ease, left .25s ease, top .25s ease;
   }
 
-  /* YES */
   #yes{
     background:#ff3b7b;
     color:#fff;
@@ -81,14 +70,12 @@
     z-index:9998;
   }
 
-  /* NO: ban đầu là nút bình thường trong hàng */
   #no{
     background:#eee;
     color:#111;
     z-index:9999;
   }
 
-  /* Khung chữ sau khi YES */
   .love-box{
     position:fixed;
     left:50%;
@@ -114,25 +101,12 @@
     line-height:1.35;
   }
 
-  /* Hearts */
-  .hearts{
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    overflow:hidden;
-    z-index:9;
-  }
-  .heart{
-    position:absolute;
-    bottom:-30px;
-    animation: float 2.2s ease forwards;
-    filter: drop-shadow(0 10px 14px rgba(0,0,0,.18));
-    opacity:.95;
-  }
+  .hearts{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9; }
+  .heart{ position:absolute; bottom:-30px; animation: float 2.2s ease forwards; opacity:.95; }
   @keyframes float{
-    0%   { transform: translateY(0) scale(.8); opacity:0; }
-    10%  { opacity:1; }
-    100% { transform: translateY(-420px) scale(1.55); opacity:0; }
+    0%{transform:translateY(0) scale(.8);opacity:0}
+    10%{opacity:1}
+    100%{transform:translateY(-420px) scale(1.55);opacity:0}
   }
 </style>
 </head>
@@ -147,8 +121,6 @@
 
   <div class="center" id="centerUI">
     <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
-
-    <!-- ✅ Ban đầu Yes & No nằm ngang hàng -->
     <div class="btn-row">
       <button id="yes">Yes</button>
       <button id="no">No</button>
@@ -169,22 +141,46 @@
 
   function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
 
+  // ✅ Lấy safe-area (tai thỏ) + chừa thanh url trên/dưới
+  function safeInsets(){
+    const cs = getComputedStyle(document.documentElement);
+    const topSA = parseFloat(cs.getPropertyValue("--sat")) || 0; // fallback
+    return {
+      top:  Math.max(16, parseFloat(getComputedStyle(document.body).paddingTop) || 0, 24),
+      bottom:  Math.max(16, parseFloat(getComputedStyle(document.body).paddingBottom) || 0, 24)
+    };
+  }
+
+  function getSafePadding(){
+    // iOS safe-area env() không đọc được trực tiếp bằng JS ổn định,
+    // nên mình chừa thủ công thêm một khoảng “đủ chắc”.
+    // Top: tránh status bar + header in-app
+    // Bottom: tránh thanh URL Safari
+    return { top: 90, bottom: 110, side: 14 };
+  }
+
   function computeFinalScale(){
     const r = yesBtn.getBoundingClientRect();
-    const targetW = window.innerWidth * 0.92; // gần full width
+    const targetW = window.innerWidth * 0.92;
     let s = targetW / r.width;
     s = Math.min(Math.max(s, 1), 12);
     return s;
   }
 
-  // NO chạy khắp màn hình (viewport)
-  function moveNoAnywhere(){
-    const pad = 6;
+  // ✅ NO chạy trong vùng “an toàn”, không lọt ra ngoài màn hình
+  function moveNoAnywhereSafe(){
+    const pad = getSafePadding();
     const b = noBtn.getBoundingClientRect();
-    const maxX = Math.max(pad, window.innerWidth  - b.width  - pad);
-    const maxY = Math.max(pad, window.innerHeight - b.height - pad);
-    const x = rand(pad, maxX);
-    const y = rand(pad, maxY);
+
+    const minX = pad.side;
+    const maxX = Math.max(minX, window.innerWidth - b.width - pad.side);
+
+    const minY = pad.top;
+    const maxY = Math.max(minY, window.innerHeight - b.height - pad.bottom);
+
+    const x = rand(minX, maxX);
+    const y = rand(minY, maxY);
+
     noBtn.style.left = x + "px";
     noBtn.style.top  = y + "px";
   }
@@ -209,20 +205,46 @@
     }, 180);
   }
 
-  // ✅ NO: lần đầu bấm mới “tách khỏi hàng” rồi bắt đầu chạy
+  // ✅ nếu NO “lỡ” bị ra ngoài (do resize/URL bar), kéo về giữa
+  function keepNoVisible(){
+    if (!noIsFloating) return;
+    const r = noBtn.getBoundingClientRect();
+    const pad = getSafePadding();
+    const out =
+      r.right < 0 || r.left > window.innerWidth ||
+      r.bottom < pad.top || r.top > window.innerHeight - pad.bottom;
+
+    if (out){
+      noBtn.style.left = "50%";
+      noBtn.style.top  = "50%";
+      noBtn.style.transform = "translate(-50%,-50%)";
+      // Sau đó nhảy lại 1 phát cho đúng hành vi
+      setTimeout(() => {
+        noBtn.style.transform = "";
+        moveNoAnywhereSafe();
+      }, 120);
+    }
+  }
+
   noBtn.addEventListener("pointerdown",(e)=>{
     e.preventDefault();
 
-    // Lần đầu tiên: chuyển NO sang fixed để chạy khắp màn hình
+    // Lần đầu: chuyển sang fixed nhưng giữ ngay vị trí “nhìn thấy”
     if (!noIsFloating){
       noIsFloating = true;
       noBtn.style.position = "fixed";
       noBtn.style.zIndex = 9999;
+
+      // đặt nó đúng chỗ đang đứng rồi mới nhảy (tránh biến mất)
+      const rect = noBtn.getBoundingClientRect();
+      noBtn.style.left = rect.left + "px";
+      noBtn.style.top  = rect.top + "px";
     }
 
-    moveNoAnywhere();
+    // nhảy trong vùng an toàn
+    moveNoAnywhereSafe();
 
-    // YES to dần — ~15 lần mới gần full màn hình
+    // YES to dần ~15 lần
     noCount++;
     if (!finalScale) finalScale = computeFinalScale();
     const t = Math.min(noCount / 15, 1);
@@ -245,22 +267,23 @@
     }
   });
 
-  // YES: chỉ còn nền couple + khung chữ + tim bay mãi
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
     loveBox.classList.add("show");
 
-    // Ẩn UI ban đầu (câu hỏi + nút)
     centerUI.style.display = "none";
-    // Ẩn luôn nút NO nếu đang floating
     noBtn.style.display = "none";
-    // Ẩn YES (vì đã click rồi)
     yesBtn.style.display = "none";
 
     startHeartsForever();
   });
 
-  window.addEventListener("resize", ()=>{ finalScale = null; });
+  // iOS / in-app browser hay thay đổi viewport khi thanh URL co giãn
+  window.addEventListener("resize", ()=>{
+    finalScale = null;
+    keepNoVisible();
+  });
+  window.addEventListener("scroll", ()=> keepNoVisible(), {passive:true});
 </script>
 </body>
 </html>
