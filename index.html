@@ -25,16 +25,14 @@
     pointer-events:none;
     z-index:1;
   }
-  body.yes-bg .overlay{ background: rgba(0,0,0,.22); }
 
-  /* stage phủ đúng phần nhìn thấy (iPhone/Zalo bar co giãn vẫn ok) */
   #stage{
     position:fixed;
     left:0; top:0;
     width:100vw;
-    height:100svh;         /* ✅ key fix */
+    height:100svh;
     z-index:5;
-    pointer-events:none;   /* chỉ bật khi đưa NO vào stage */
+    pointer-events:none;
   }
 
   .center{
@@ -45,6 +43,7 @@
     width:min(560px,92vw);
     text-align:center;
     z-index:6;
+    display:none;
   }
 
   h2{
@@ -68,26 +67,11 @@
     border-radius:999px;
     font-size:18px;
     cursor:pointer;
-    user-select:none;
-    touch-action:manipulation;
-    transition: transform .25s ease, left .18s ease, top .18s ease;
-    margin:0;
+    transition:.25s;
   }
 
-  #yes{
-    background:#ff3b7b;
-    color:#fff;
-    transform:scale(1);
-    z-index:9998;
-    position:relative;
-  }
-
-  #no{
-    background:#eee;
-    color:#111;
-    z-index:9999;
-    position:relative;
-  }
+  #yes{ background:#ff3b7b; color:white; }
+  #no{ background:#eee; }
 
   .love-box{
     position:fixed;
@@ -95,23 +79,14 @@
     top:50%;
     transform:translate(-50%,-50%);
     width:min(560px,92vw);
-    padding:18px 18px;
+    padding:18px;
     border-radius:22px;
-    background:rgba(255,255,255,.82);
+    background:rgba(255,255,255,.85);
     backdrop-filter: blur(10px);
     box-shadow:0 18px 45px rgba(0,0,0,.22);
     text-align:center;
     z-index:10;
     display:none;
-  }
-  .love-box.show{ display:block; }
-
-  .love-text{
-    margin:0;
-    color:#ff3b7b;
-    font-weight:900;
-    font-size:20px;
-    line-height:1.35;
   }
 
   .hearts{
@@ -121,215 +96,111 @@
     overflow:hidden;
     z-index:9;
   }
+
   .heart{
     position:absolute;
     bottom:-30px;
     animation: float 2.2s ease forwards;
-    opacity:.95;
-    filter: drop-shadow(0 10px 14px rgba(0,0,0,.18));
   }
+
   @keyframes float{
-    0%{transform:translateY(0) scale(.8);opacity:0}
-    10%{opacity:1}
-    100%{transform:translateY(-420px) scale(1.55);opacity:0}
+    0%{transform:translateY(0);opacity:0}
+    100%{transform:translateY(-420px);opacity:1}
   }
+
+  /* password gate */
+  .gate{
+    position:fixed;
+    inset:0;
+    display:grid;
+    place-items:center;
+    z-index:20;
+  }
+
+  .gate-card{
+    width:min(420px,92vw);
+    padding:20px;
+    border-radius:22px;
+    background:rgba(255,255,255,.9);
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+
+  .gate-title{
+    font-weight:900;
+    color:#ff3b7b;
+    font-size:20px;
+    margin-bottom:12px;
+  }
+
+  .gate-input{
+    padding:12px;
+    border-radius:12px;
+    border:1px solid #ddd;
+    width:70%;
+    font-size:16px;
+  }
+
+  .gate-btn{
+    padding:12px 18px;
+    margin-left:10px;
+    border-radius:12px;
+    border:none;
+    background:#ff3b7b;
+    color:white;
+    font-weight:800;
+  }
+
+  .gate-msg{ margin-top:10px; font-weight:700; color:red; }
 </style>
 </head>
 
 <body>
-  <div class="overlay"></div>
-  <div class="hearts" id="hearts"></div>
-  <div id="stage"></div>
 
-  <div class="love-box" id="loveBox">
-    <p class="love-text">Ba biết màaa, ba yêu Thu Trang nhiều lắmmm 🦦</p>
-  </div>
+<div class="overlay"></div>
+<div id="stage"></div>
 
-  <div class="center" id="centerUI">
-    <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
-    <div class="btn-row">
-      <button id="yes">Yes</button>
-      <button id="no">No</button>
-    </div>
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <p class="gate-title">Ngày của tụi mình làaaa?? (ddmmyy)</p>
+    <input id="pw" class="gate-input" type="password">
+    <button id="unlock" class="gate-btn">Mở</button>
+    <p id="gateMsg" class="gate-msg"></p>
   </div>
+</div>
+
+<div class="center" id="centerUI">
+  <h2>Thu Trang ơi, do you be my valentine? 💌🫧</h2>
+  <div class="btn-row">
+    <button id="yes">Yes</button>
+    <button id="no">No</button>
+  </div>
+</div>
+
+<div class="love-box" id="loveBox">
+  <p>Ba biết màaa, ba yêu Thu Trang nhiều lắmmm 🦦</p>
+</div>
+
+<div class="hearts" id="hearts"></div>
 
 <script>
-  const yesBtn   = document.getElementById("yes");
-  const noBtn    = document.getElementById("no");
-  const hearts   = document.getElementById("hearts");
-  const loveBox  = document.getElementById("loveBox");
-  const centerUI = document.getElementById("centerUI");
-  const stage    = document.getElementById("stage");
+const PASSWORD="05072025";
 
-  let noCount = 0;
-  let finalScale = null;
-  let noIsFloating = false;
-  let heartTimer = null;
+const gate=document.getElementById("gate");
+const pw=document.getElementById("pw");
+const unlock=document.getElementById("unlock");
+const gateMsg=document.getElementById("gateMsg");
+const centerUI=document.getElementById("centerUI");
 
-  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
-  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-
-  function stageSize(){ return { w: stage.clientWidth, h: stage.clientHeight }; }
-
-  function computeFinalScale(){
-    const r = yesBtn.getBoundingClientRect();
-    const targetW = stageSize().w * 0.92;
-    return clamp(targetW / r.width, 1, 12);
+unlock.onclick=()=>{
+  if(pw.value===PASSWORD){
+    gate.style.display="none";
+    centerUI.style.display="block";
+  }else{
+    gateMsg.textContent="Sai rồi 😝";
   }
-
-  function intersects(a, b){
-    return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
-  }
-
-  function getAvoidRects(){
-    return {
-      centerRect: centerUI.getBoundingClientRect(),
-      yesRect: yesBtn.getBoundingClientRect()
-    };
-  }
-
-  // ✅ 60% nửa trên, 40% nửa dưới (vẫn né vùng câu hỏi + né YES)
-  function pickNoPositionAvoiding(){
-    const { w, h } = stageSize();
-    const b = noBtn.getBoundingClientRect();
-
-    const padSide = 14;
-    const padTop = 80;     // chừa tai thỏ/app bar
-    const padBottom = 40;  // chừa phần dưới
-
-    const minX = padSide;
-    const maxX = Math.max(minX, w - b.width - padSide);
-
-    const { centerRect, yesRect } = getAvoidRects();
-
-    // chia 2 vùng Y: upper / lower
-    const upperMinY = padTop;
-    const upperMaxY = Math.max(upperMinY, Math.floor(h * 0.48) - b.height);
-
-    const lowerMinY = Math.max(padTop, Math.floor(h * 0.55));
-    const lowerMaxY = Math.max(lowerMinY, h - b.height - padBottom);
-
-    function tryPick(yMin, yMax){
-      for(let i=0;i<60;i++){
-        const x = rand(minX, maxX);
-        const y = rand(yMin, yMax);
-
-        const candidate = { left:x, top:y, right:x+b.width, bottom:y+b.height };
-
-        // né câu hỏi và né YES
-        if (intersects(candidate, centerRect)) continue;
-        if (intersects(candidate, yesRect)) continue;
-
-        return { x, y };
-      }
-      return null;
-    }
-
-    const useUpper = Math.random() < 0.6;
-
-    let pos = null;
-    if (useUpper){
-      pos = tryPick(upperMinY, upperMaxY) || tryPick(lowerMinY, lowerMaxY);
-    } else {
-      pos = tryPick(lowerMinY, lowerMaxY) || tryPick(upperMinY, upperMaxY);
-    }
-
-    // fallback chắc chắn không lỗi
-    return pos || { x: Math.floor(w*0.30), y: Math.floor(h*0.70) };
-  }
-
-  function moveNo(){
-    const pos = pickNoPositionAvoiding();
-    noBtn.style.left = pos.x + "px";
-    noBtn.style.top  = pos.y + "px";
-  }
-
-  function spawnHeart(){
-    const icons = ["💗","💖","❤️","🫧"];
-    const w = stageSize().w;
-    const el = document.createElement("div");
-    el.className = "heart";
-    el.textContent = icons[rand(0, icons.length-1)];
-    el.style.left = rand(0, w) + "px";
-    el.style.fontSize = rand(18, 36) + "px";
-    el.style.animationDuration = (1.8 + Math.random()*1.1).toFixed(2) + "s";
-    hearts.appendChild(el);
-    el.addEventListener("animationend", ()=> el.remove());
-  }
-
-  function startHeartsForever(){
-    if (heartTimer) return;
-    heartTimer = setInterval(() => {
-      spawnHeart();
-      if (Math.random() > 0.45) spawnHeart();
-    }, 180);
-  }
-
-  // NO: ban đầu trong hàng; bấm mới đưa vào stage để chạy
-  noBtn.addEventListener("pointerdown", (e)=>{
-    e.preventDefault();
-
-    if (!noIsFloating){
-      noIsFloating = true;
-
-      stage.style.pointerEvents = "auto";
-      stage.appendChild(noBtn);
-
-      noBtn.style.position = "absolute";
-      noBtn.style.transform = "none";
-
-      // đặt ngay gần dưới câu hỏi trước
-      noBtn.style.left = "50%";
-      noBtn.style.top  = "68%";
-      noBtn.style.transform = "translate(-50%,-50%)";
-
-      setTimeout(() => {
-        noBtn.style.transform = "none";
-        moveNo();
-      }, 50);
-    } else {
-      moveNo();
-    }
-
-    // YES to dần ~15 lần
-    noCount++;
-    if (!finalScale) finalScale = computeFinalScale();
-    const t = Math.min(noCount / 15, 1);
-    const scale = 1 + t * (finalScale - 1);
-
-    if (t > 0.55){
-      yesBtn.style.position = "fixed";
-      yesBtn.style.left = "50%";
-      yesBtn.style.top  = "62%";
-      yesBtn.style.transform = `translate(-50%,-50%) scale(${scale})`;
-    } else {
-      yesBtn.style.transform = `scale(${scale})`;
-    }
-
-    if (t === 1){
-      yesBtn.style.position = "fixed";
-      yesBtn.style.left = "50%";
-      yesBtn.style.top  = "62%";
-      yesBtn.style.transform = `translate(-50%,-50%) scale(${finalScale})`;
-    }
-  });
-
-  // YES: couple + khung chữ + tim bay mãi
-  yesBtn.addEventListener("click", ()=>{
-    document.body.classList.add("yes-bg");
-    loveBox.classList.add("show");
-
-    centerUI.style.display = "none";
-    noBtn.style.display = "none";
-    yesBtn.style.display = "none";
-
-    startHeartsForever();
-  });
-
-  window.addEventListener("resize", ()=>{
-    finalScale = null;
-    if (noIsFloating) moveNo();
-  });
+};
 </script>
+
 </body>
 </html>
