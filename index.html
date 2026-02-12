@@ -467,12 +467,15 @@
     const t = Math.min(noCount / 15, 1);
     const scale = 1 + t * (finalScale - 1);
 
-    if (t > 0.55){
-      yesBtn.style.position = "fixed";
-      yesBtn.style.left = "50%";
-      yesBtn.style.top  = "62%";
-      yesBtn.style.transform = `translate(-50%,-50%) scale(${scale})`;
-    } else {
+if (t > 0.55){
+  setTimeout(()=>{
+    yesBtn.style.position = "fixed";
+    yesBtn.style.left = "50%";
+    yesBtn.style.top  = "62%";
+    yesBtn.style.transform = `translate(-50%,-50%) scale(${scale})`;
+  }, 280);   // delay ~0.28s
+}
+ else {
       yesBtn.style.transform = `scale(${scale})`;
     }
 
@@ -502,5 +505,6 @@
 </script>
 </body>
 </html>
+
 
 
