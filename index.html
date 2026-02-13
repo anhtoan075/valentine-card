@@ -286,6 +286,7 @@
       document.getElementById("centerUI").style.display = "block";
       gateMsg.textContent = "";
       pw.value = "";
+      pw.blur(); /* ✅ FIX: đóng bàn phím để lần bấm đầu không bị "ăn" */
     } else {
       gateMsg.textContent = "Sai rồi 😝";
       gateCard.classList.remove("shake");
@@ -295,7 +296,7 @@
   }
 
   unlock.addEventListener("click", doUnlock);
-  pw.addEventListener("keydown", (e)=>{ if(e.key === "Enter") doUnlock(); });
+  pw.addEventListener("keydown", (e)=>{ if (e.key === "Enter") doUnlock(); });
 
   /* ===== NEW: 15 câu + random mỗi lần vào link ===== */
   const noMessages = [
@@ -325,7 +326,7 @@
     el.textContent = noMessages[msgIndex % noMessages.length];
     msgIndex++;
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2200);
+    setTimeout(() => el.remove(), 4500); /* ✅ giữ đúng duration 4.5s */
   }
 
   /* ===== ORIGINAL EFFECTS (unchanged) ===== */
@@ -435,7 +436,8 @@
     }, 180);
   }
 
-  noBtn.addEventListener("pointerdown", (e)=>{
+  /* ===== FIX: thêm handler chung để NO luôn ăn click/touch trên iPhone ===== */
+  function handleNo(e){
     e.preventDefault();
 
     /* ✅ chỉ thêm dòng này, không đổi logic NO */
@@ -485,7 +487,12 @@ if (t > 0.55){
       yesBtn.style.top  = "62%";
       yesBtn.style.transform = `translate(-50%,-50%) scale(${finalScale})`;
     }
-  });
+  }
+
+  /* ✅ giữ pointerdown như cũ + thêm touchstart/click để lần đầu luôn ăn */
+  noBtn.addEventListener("pointerdown", handleNo);
+  noBtn.addEventListener("touchstart", handleNo, { passive:false });
+  noBtn.addEventListener("click", handleNo);
 
   yesBtn.addEventListener("click", ()=>{
     document.body.classList.add("yes-bg");
@@ -505,6 +512,3 @@ if (t > 0.55){
 </script>
 </body>
 </html>
-
-
-
