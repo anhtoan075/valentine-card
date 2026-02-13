@@ -6,6 +6,11 @@
 <title>For Thu Trang 💌</title>
 
 <style>
+  :root{
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+
   body{
     margin:0;
     height:100vh;
@@ -208,26 +213,26 @@
 
   /* ===== NEW: text bay từ dưới lên khi bấm NO ===== */
   .float-text{
-  position:fixed;
-  left:50%;
-  bottom:-40px;
-  transform:translateX(-50%);
-  color:#fff;
-  font-weight:900;
-  font-size:16px;
-  text-shadow:0 6px 18px rgba(0,0,0,.45);
-  animation: floatText 4.5s linear forwards;   /* chậm hơn */
-  z-index:9999;
-  pointer-events:none;
-  white-space:nowrap;
+    position:fixed;
+    left:50%;
+    bottom:-40px;
+    transform:translateX(-50%);
+    color:#fff;
+    font-weight:900;
+    font-size:16px;
+    text-shadow:0 6px 18px rgba(0,0,0,.45);
+    animation: floatText 4.5s linear forwards;   /* chậm hơn */
+    z-index:9999;
+    pointer-events:none;
+    white-space:nowrap;
   }
 
   @keyframes floatText{
-  0%   {opacity:0; transform:translate(-50%,0)}
-  5%   {opacity:1}
-  90%  {opacity:1}
-  100% {opacity:0; transform:translate(-50%,-100vh)}  /* bay lên tới mép trên */
-}
+    0%   {opacity:0; transform:translate(-50%,0)}
+    5%   {opacity:1}
+    90%  {opacity:1}
+    100% {opacity:0; transform:translate(-50%,-100vh)}  /* bay lên tới mép trên */
+  }
 </style>
 </head>
 
@@ -286,7 +291,7 @@
       document.getElementById("centerUI").style.display = "block";
       gateMsg.textContent = "";
       pw.value = "";
-      pw.blur(); /* ✅ FIX: đóng bàn phím để lần bấm đầu không bị "ăn" */
+      pw.blur(); // ✅ đóng bàn phím để lần bấm NO đầu tiên không bị "ăn"
     } else {
       gateMsg.textContent = "Sai rồi 😝";
       gateCard.classList.remove("shake");
@@ -296,7 +301,7 @@
   }
 
   unlock.addEventListener("click", doUnlock);
-  pw.addEventListener("keydown", (e)=>{ if (e.key === "Enter") doUnlock(); });
+  pw.addEventListener("keydown", (e)=>{ if(e.key === "Enter") doUnlock(); });
 
   /* ===== NEW: 15 câu + random mỗi lần vào link ===== */
   const noMessages = [
@@ -321,12 +326,15 @@
   let msgIndex = 0;
 
   function showNoMessage(){
+    // ✅ không cho chồng chữ: xóa cái đang chạy (nếu có) rồi mới tạo cái mới
+    document.querySelectorAll(".float-text").forEach(x => x.remove());
+
     const el = document.createElement("div");
     el.className = "float-text";
     el.textContent = noMessages[msgIndex % noMessages.length];
     msgIndex++;
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 4500); /* ✅ giữ đúng duration 4.5s */
+    setTimeout(() => el.remove(), 4500);
   }
 
   /* ===== ORIGINAL EFFECTS (unchanged) ===== */
@@ -341,6 +349,9 @@
   let finalScale = null;
   let noIsFloating = false;
   let heartTimer = null;
+
+  // ✅ chặn double-trigger (touchstart + click) gây nhảy 2 lần + chồng chữ
+  let lastNoTap = 0;
 
   function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -369,14 +380,20 @@
     const b = noBtn.getBoundingClientRect();
 
     const padSide = 14;
-    const padTop = 80;
-    const padBottom = 40;
+
+    // ✅ đọc safe-area iPhone (notch + home bar)
+    const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")) || 0;
+    const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")) || 0;
+
+    const padTop = 90 + safeTop;          // chừa phần trên nhiều hơn
+    const padBottom = 120 + safeBottom;   // chừa phần dưới nhiều hơn để không dính home bar
 
     const minX = padSide;
     const maxX = Math.max(minX, w - b.width - padSide);
 
     const { centerRect, yesRect } = getAvoidRects();
 
+    // chia 2 vùng Y: upper / lower (giữ đúng 60/40)
     const upperMinY = padTop;
     const upperMaxY = Math.max(upperMinY, Math.floor(h * 0.48) - b.height);
 
@@ -384,7 +401,7 @@
     const lowerMaxY = Math.max(lowerMinY, h - b.height - padBottom);
 
     function tryPick(yMin, yMax){
-      for(let i=0;i<60;i++){
+      for(let i=0;i<80;i++){
         const x = rand(minX, maxX);
         const y = rand(yMin, yMax);
 
@@ -436,11 +453,13 @@
     }, 180);
   }
 
-  /* ===== FIX: thêm handler chung để NO luôn ăn click/touch trên iPhone ===== */
   function handleNo(e){
     e.preventDefault();
 
-    /* ✅ chỉ thêm dòng này, không đổi logic NO */
+    const now = Date.now();
+    if (now - lastNoTap < 350) return; // ✅ chặn double-trigger
+    lastNoTap = now;
+
     showNoMessage();
 
     if (!noIsFloating){
@@ -452,6 +471,7 @@
       noBtn.style.position = "absolute";
       noBtn.style.transform = "none";
 
+      // đặt ngay gần dưới câu hỏi trước
       noBtn.style.left = "50%";
       noBtn.style.top  = "68%";
       noBtn.style.transform = "translate(-50%,-50%)";
@@ -464,20 +484,20 @@
       moveNo();
     }
 
+    // YES to dần ~15 lần
     noCount++;
     if (!finalScale) finalScale = computeFinalScale();
     const t = Math.min(noCount / 15, 1);
     const scale = 1 + t * (finalScale - 1);
 
-if (t > 0.55){
-  setTimeout(()=>{
-    yesBtn.style.position = "fixed";
-    yesBtn.style.left = "50%";
-    yesBtn.style.top  = "62%";
-    yesBtn.style.transform = `translate(-50%,-50%) scale(${scale})`;
-  }, 280);   // delay ~0.28s
-}
- else {
+    if (t > 0.55){
+      setTimeout(()=>{
+        yesBtn.style.position = "fixed";
+        yesBtn.style.left = "50%";
+        yesBtn.style.top  = "62%";
+        yesBtn.style.transform = `translate(-50%,-50%) scale(${scale})`;
+      }, 280);
+    } else {
       yesBtn.style.transform = `scale(${scale})`;
     }
 
@@ -489,7 +509,7 @@ if (t > 0.55){
     }
   }
 
-  /* ✅ giữ pointerdown như cũ + thêm touchstart/click để lần đầu luôn ăn */
+  // ✅ giữ pointerdown + thêm touchstart/click để iPhone luôn ăn
   noBtn.addEventListener("pointerdown", handleNo);
   noBtn.addEventListener("touchstart", handleNo, { passive:false });
   noBtn.addEventListener("click", handleNo);
